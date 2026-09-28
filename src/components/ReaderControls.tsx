@@ -8,6 +8,7 @@ import {
   Columns2,
   FileText,
   RotateCw,
+  LayoutGrid,
 } from 'lucide-react';
 import { BookDocument } from '../types';
 
@@ -19,11 +20,13 @@ interface ReaderControlsProps {
   isFullscreen?: boolean;
   isMobile?: boolean;
   isMobileRotated?: boolean;
+  showThumbnails?: boolean;
   onTurnPage: (direction: 'next' | 'prev') => void;
   onJumpToSpread: (target: number) => void;
   onToggleSinglePage?: () => void;
   onToggleFullscreen?: () => void;
   onToggleRotate?: () => void;
+  onToggleThumbnails?: () => void;
   isIdle: boolean;
 }
 
@@ -35,11 +38,13 @@ export const ReaderControls: React.FC<ReaderControlsProps> = ({
   isFullscreen = false,
   isMobile = false,
   isMobileRotated = false,
+  showThumbnails = false,
   onTurnPage,
   onJumpToSpread,
   onToggleSinglePage,
   onToggleFullscreen,
   onToggleRotate,
+  onToggleThumbnails,
   isIdle,
 }) => {
   const [showSlider, setShowSlider] = useState<boolean>(false);
@@ -79,12 +84,8 @@ export const ReaderControls: React.FC<ReaderControlsProps> = ({
 
   // Compute page label
   const getPageLabel = () => {
-    if (isMobile) {
-      return `Page ${currentSpread} / ${book.numPages}`;
-    }
     if (singlePageMode) {
-      const page = currentSpread === 0 ? 1 : Math.min(book.numPages, currentSpread * 2);
-      return `Page ${page} / ${book.numPages}`;
+      return `Page ${currentSpread} / ${book.numPages}`;
     }
     if (currentSpread === 0) {
       return `Page 1 / ${book.numPages}`;
@@ -206,8 +207,8 @@ export const ReaderControls: React.FC<ReaderControlsProps> = ({
           </button>
         )}
 
-        {/* Desktop Layout Mode Toggle */}
-        {!isMobile && onToggleSinglePage && (
+        {/* Layout Mode Toggle (Mobile & Desktop) */}
+        {onToggleSinglePage && (
           <button
             onClick={onToggleSinglePage}
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
@@ -227,6 +228,22 @@ export const ReaderControls: React.FC<ReaderControlsProps> = ({
             ) : (
               <Columns2 className="w-3.5 h-3.5" />
             )}
+          </button>
+        )}
+
+        {/* Page Thumbnails Navigator Toggle */}
+        {onToggleThumbnails && (
+          <button
+            onClick={onToggleThumbnails}
+            className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+              showThumbnails
+                ? 'text-amber-300 bg-amber-400/20'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-white/10'
+            }`}
+            title="Page Thumbnails Navigator (T)"
+            aria-label="Toggle Page Thumbnails"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
           </button>
         )}
 

@@ -14,6 +14,7 @@ import {
   Columns2,
   FileText,
   RotateCw,
+  LayoutGrid,
 } from 'lucide-react';
 import { BookDocument, ReaderSettings } from '../types';
 
@@ -25,9 +26,11 @@ interface ReaderToolbarProps {
   isFullscreen: boolean;
   isMobile?: boolean;
   isMobileRotated?: boolean;
+  showThumbnails?: boolean;
   onUpdateSettings: (newSettings: Partial<ReaderSettings>) => void;
   onToggleFullscreen: () => void;
   onToggleRotate?: () => void;
+  onToggleThumbnails?: () => void;
   onBackToLibrary: () => void;
   onOpenDetails: () => void;
   isIdle: boolean;
@@ -40,9 +43,11 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
   isFullscreen,
   isMobile = false,
   isMobileRotated = false,
+  showThumbnails = false,
   onUpdateSettings,
   onToggleFullscreen,
   onToggleRotate,
+  onToggleThumbnails,
   onBackToLibrary,
   onOpenDetails,
   isIdle,
@@ -74,12 +79,8 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
 
   // Compute current display page string
   const getPageDisplay = () => {
-    if (isMobile) {
-      return `Page ${currentSpread} of ${book.numPages}`;
-    }
     if (settings.singlePageMode) {
-      const page = currentSpread === 0 ? 1 : Math.min(book.numPages, currentSpread * 2);
-      return `Page ${page} of ${book.numPages}`;
+      return `Page ${currentSpread} of ${book.numPages}`;
     }
     if (currentSpread === 0) {
       return `Cover · Page 1 of ${book.numPages}`;
@@ -157,32 +158,47 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             </button>
           )}
 
-          {/* Single Page / Two-Page Spread Toggle (Desktop only, since mobile is strictly single page) */}
-          {!isMobile && (
+          {/* Single Page / Two-Page Spread Toggle (Mobile & Desktop) */}
+          <button
+            onClick={() =>
+              onUpdateSettings({ singlePageMode: !settings.singlePageMode })
+            }
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
+              settings.singlePageMode
+                ? 'text-amber-300 bg-amber-500/15 border border-amber-400/25'
+                : 'text-stone-300 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+            title={
+              settings.singlePageMode
+                ? 'Switch to Two-Page Horizontal Spread'
+                : 'Switch to Single Page View'
+            }
+            aria-label="Toggle Page Layout"
+          >
+            {settings.singlePageMode ? (
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
+            ) : (
+              <Columns2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            )}
+            <span className="text-[10px] sm:text-[11px] font-medium hidden sm:inline">
+              {settings.singlePageMode ? '1 Page' : 'Spread'}
+            </span>
+          </button>
+
+          {/* Page Thumbnails Navigator Toggle */}
+          {onToggleThumbnails && (
             <button
-              onClick={() =>
-                onUpdateSettings({ singlePageMode: !settings.singlePageMode })
-              }
+              onClick={onToggleThumbnails}
               className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                settings.singlePageMode
-                  ? 'text-amber-300 bg-amber-500/15 border border-amber-400/25'
+                showThumbnails
+                  ? 'text-amber-300 bg-amber-500/20 border border-amber-400/30'
                   : 'text-stone-300 hover:text-white hover:bg-white/5 border border-transparent'
               }`}
-              title={
-                settings.singlePageMode
-                  ? 'Switch to Two-Page Horizontal Spread'
-                  : 'Switch to Single Page View'
-              }
-              aria-label="Toggle Page Layout"
+              title="Page Thumbnails Navigator (T)"
+              aria-label="Toggle Page Thumbnails"
             >
-              {settings.singlePageMode ? (
-                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
-              ) : (
-                <Columns2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-              <span className="text-[10px] sm:text-[11px] font-medium hidden sm:inline">
-                {settings.singlePageMode ? '1 Page' : 'Spread'}
-              </span>
+              <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
+              <span className="text-[10px] sm:text-[11px] font-medium hidden sm:inline">Pages</span>
             </button>
           )}
 

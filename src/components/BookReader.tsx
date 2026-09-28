@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Minimize2, Maximize2, RotateCw } from 'lucide-react';
+import { Minimize2, RotateCw } from 'lucide-react';
 import { BookDocument, ReaderSettings } from '../types';
 import { BookSpread } from './BookSpread';
 import { NightLightLamp } from './NightLightLamp';
 import { ReaderToolbar } from './ReaderToolbar';
 import { ReaderControls } from './ReaderControls';
 import { BookInfoModal } from './BookInfoModal';
+import { ThumbnailDrawer } from './ThumbnailDrawer';
 import { storageService } from '../services/storageService';
 import { audioService } from '../services/audioService';
 
@@ -18,12 +19,16 @@ export const BookReader: React.FC<BookReaderProps> = ({
   book,
   onBackToLibrary,
 }) => {
-  // Settings loaded from localStorage
-  const [settings, setSettings] = useState<ReaderSettings>(() =>
-    storageService.getSettings()
-  );
+  // Settings loaded from localStorage (singlePageMode defaults to false for 2-page horizontal spread)
+  const [settings, setSettings] = useState<ReaderSettings>(() => {
+    const s = storageService.getSettings();
+    return {
+      ...s,
+      singlePageMode: s.singlePageMode ?? false,
+    };
+  });
 
-  // Viewport dimensions & Mobile check (strictly single-page on mobile devices width < 768px)
+  // Viewport dimensions & Mobile check
   const [windowWidth, setWindowWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1024
   );
@@ -31,6 +36,9 @@ export const BookReader: React.FC<BookReaderProps> = ({
 
   // Mobile horizontal rotation state
   const [isMobileRotated, setIsMobileRotated] = useState<boolean>(false);
+
+  // Collapsible page thumbnails drawer state
+  const [showThumbnails, setShowThumbnails] = useState<boolean>(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -40,7 +48,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Total spreads calculation for desktop:
+  // Total spreads calculation:
   // Spread 0: Cover (Page 1)
   // Spread 1: Pages 2–3
   // Spread 2: Pages 4–5 ...
@@ -52,7 +60,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
     return Math.min(Math.max(1, saved || 1), book.numPages);
   });
 
-  // Spread index corresponding to currentPage for desktop view
+  // Spread index corresponding to currentPage for 2-page spread view
   const currentSpread = currentPage === 1 ? 0 : Math.floor(currentPage / 2);
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -78,8 +86,8 @@ export const BookReader: React.FC<BookReaderProps> = ({
     (direction: 'next' | 'prev') => {
       audioService.initOnUserGesture();
 
-      if (isMobile) {
-        // Mobile single-page mode: advances strictly by 1 page
+      if (settings.singlePageMode) {
+        // Single-page mode: advances strictly by 1 page
         setCurrentPage((prev) => {
           let next = prev;
           if (direction === 'next' && prev < book.numPages) {
@@ -91,7 +99,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
           return next;
         });
       } else {
-        // Desktop two-page spread mode: advances by spread
+        // Two-page spread mode (default on mobile and desktop): advances by spread
         setCurrentPage((prev) => {
           let next = prev;
           if (direction === 'next') {
@@ -112,7 +120,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
         });
       }
     },
-    [isMobile, book.id, book.numPages]
+    [settings.singlePageMode, book.id, book.numPages]
   );
 
   const handleJumpToPage = (targetPage: number) => {
@@ -238,6 +246,13 @@ export const BookReader: React.FC<BookReaderProps> = ({
         return;
       }
 
+      // Toggle Thumbnails drawer shortcut 'T'
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        setShowThumbnails((prev) => !prev);
+        return;
+      }
+
       // Fullscreen shortcut 'F'
       if (e.key === 'f' || e.key === 'F') {
         toggleFullscreen();
@@ -246,7 +261,9 @@ export const BookReader: React.FC<BookReaderProps> = ({
 
       // Escape key to dismiss modals or exit fullscreen
       if (e.key === 'Escape') {
-        if (showInfoModal) {
+        if (showThumbnails) {
+          setShowThumbnails(false);
+        } else if (showInfoModal) {
           setShowInfoModal(false);
         } else if (isFullscreen) {
           toggleFullscreen();
@@ -258,7 +275,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleTurnPage, showInfoModal, isFullscreen]);
+  }, [handleTurnPage, showThumbnails, showInfoModal, isFullscreen]);
 
   // Mouse idle detection for calm reading immersion
   useEffect(() => {
@@ -291,7 +308,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
           : 'bg-[#18181b]'
       }`}
     >
-      {/* Warm Reading Lamp Lighting Effect centered vertically on pages */}
+      {/* Warm Reading Lamp Lighting Effect centered vertically on pages with 3s auto fade-out */}
       <NightLightLamp
         enabled={settings.nightLightEnabled && settings.theme === 'night'}
         warmth={settings.nightLightWarmth}
@@ -311,15 +328,17 @@ export const BookReader: React.FC<BookReaderProps> = ({
         <div className="pointer-events-auto">
           <ReaderToolbar
             book={book}
-            currentSpread={isMobile ? currentPage : currentSpread}
-            totalSpreads={isMobile ? book.numPages : totalSpreads}
+            currentSpread={settings.singlePageMode ? currentPage : currentSpread}
+            totalSpreads={settings.singlePageMode ? book.numPages : totalSpreads}
             settings={settings}
             isFullscreen={isFullscreen}
             isMobile={isMobile}
             isMobileRotated={isMobileRotated}
+            showThumbnails={showThumbnails}
             onUpdateSettings={handleUpdateSettings}
             onToggleFullscreen={toggleFullscreen}
             onToggleRotate={toggleMobileRotation}
+            onToggleThumbnails={() => setShowThumbnails((prev) => !prev)}
             onBackToLibrary={onBackToLibrary}
             onOpenDetails={() => setShowInfoModal(true)}
             isIdle={isIdle && !isFullscreen}
@@ -358,8 +377,10 @@ export const BookReader: React.FC<BookReaderProps> = ({
       {/* The Central Reading Area - Expands to 100% of device screen in Fullscreen or Mobile */}
       <main
         className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-300 ${
-          isFullscreen || isMobile
+          isFullscreen
             ? 'p-0 m-0 w-full h-full'
+            : isMobile
+            ? 'p-1 w-full h-full'
             : 'pt-8 pb-10 px-1 sm:pt-10 sm:pb-12 sm:px-2 md:px-3'
         }`}
       >
@@ -374,10 +395,13 @@ export const BookReader: React.FC<BookReaderProps> = ({
           isMobileRotated={isMobileRotated}
           onTurnPage={handleTurnPage}
           onToggleRotate={toggleMobileRotation}
+          onToggleSinglePage={() =>
+            handleUpdateSettings({ singlePageMode: !settings.singlePageMode })
+          }
         />
       </main>
 
-      {/* Floating Bottom Glass Controls - Overlayed transparently or hidden during fullscreen/idle */}
+      {/* Floating Bottom Glass Controls */}
       <div
         className={`fixed bottom-0 left-0 right-0 z-40 transition-opacity duration-300 pointer-events-none ${
           isFullscreen
@@ -390,23 +414,38 @@ export const BookReader: React.FC<BookReaderProps> = ({
         <div className="pointer-events-auto">
           <ReaderControls
             book={book}
-            currentSpread={isMobile ? currentPage : currentSpread}
-            totalSpreads={isMobile ? book.numPages : totalSpreads}
-            singlePageMode={isMobile || settings.singlePageMode}
+            currentSpread={settings.singlePageMode ? currentPage : currentSpread}
+            totalSpreads={settings.singlePageMode ? book.numPages : totalSpreads}
+            singlePageMode={settings.singlePageMode}
             isFullscreen={isFullscreen}
             isMobile={isMobile}
             isMobileRotated={isMobileRotated}
+            showThumbnails={showThumbnails}
             onTurnPage={handleTurnPage}
-            onJumpToSpread={isMobile ? handleJumpToPage : handleJumpToSpread}
+            onJumpToSpread={settings.singlePageMode ? handleJumpToPage : handleJumpToSpread}
             onToggleSinglePage={() =>
               handleUpdateSettings({ singlePageMode: !settings.singlePageMode })
             }
             onToggleFullscreen={toggleFullscreen}
             onToggleRotate={toggleMobileRotation}
+            onToggleThumbnails={() => setShowThumbnails((prev) => !prev)}
             isIdle={isIdle && !isFullscreen}
           />
         </div>
       </div>
+
+      {/* Collapsible Glass-Styled Thumbnail Drawer for rapid visual navigation */}
+      <ThumbnailDrawer
+        book={book}
+        currentPage={currentPage}
+        currentSpread={currentSpread}
+        singlePageMode={settings.singlePageMode}
+        isOpen={showThumbnails}
+        onClose={() => setShowThumbnails(false)}
+        onSelectPage={(pageNum) => {
+          handleJumpToPage(pageNum);
+        }}
+      />
 
       {/* Book Metadata & Reading Stats Modal */}
       {showInfoModal && (

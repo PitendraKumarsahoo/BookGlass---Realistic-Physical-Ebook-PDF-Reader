@@ -27,11 +27,36 @@ export const PageRenderer: React.FC<PageRendererProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Render PDF Canvas onto local canvas without DOM stealing
+  // Helper to transfer High-Resolution Offscreen Canvas Buffer to DOM Canvas
+  const copyBufferToCanvas = (
+    source: any,
+    target: HTMLCanvasElement
+  ) => {
+    target.width = source.width;
+    target.height = source.height;
+    const ctx = target.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(source, 0, 0);
+    }
+  };
+
+  // Render PDF Canvas from High-Resolution Offscreen Buffer
   useEffect(() => {
     if (!book.pdfDoc || pageNum === null) return;
 
     let isCancelled = false;
+
+    // Check synchronous offscreen buffer cache first for 0ms instantaneous transition sharpness
+    const cachedBuffer = pdfService.getCachedBuffer(pageNum);
+    if (cachedBuffer && canvasRef.current) {
+      copyBufferToCanvas(cachedBuffer.buffer, canvasRef.current);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -47,16 +72,7 @@ export const PageRenderer: React.FC<PageRendererProps> = ({
         if (isCancelled) return;
 
         if (result && canvasRef.current) {
-          const canvas = canvasRef.current;
-          canvas.width = result.canvas.width;
-          canvas.height = result.canvas.height;
-
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(result.canvas, 0, 0);
-          }
+          copyBufferToCanvas(result.canvas, canvasRef.current);
           setLoading(false);
         } else {
           setLoading(false);

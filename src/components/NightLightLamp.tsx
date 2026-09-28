@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface NightLightLampProps {
   enabled: boolean;
@@ -11,6 +11,40 @@ export const NightLightLamp: React.FC<NightLightLampProps> = ({
   warmth,
   intensity,
 }) => {
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Show lamp overlay and schedule automatic 3-second timeout fade-out
+    const triggerLampInteraction = () => {
+      setIsVisible(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setIsVisible(false);
+      }, 3000);
+    };
+
+    // Initial activation
+    triggerLampInteraction();
+
+    window.addEventListener('mousemove', triggerLampInteraction);
+    window.addEventListener('mousedown', triggerLampInteraction);
+    window.addEventListener('keydown', triggerLampInteraction);
+    window.addEventListener('touchstart', triggerLampInteraction, { passive: true });
+    window.addEventListener('wheel', triggerLampInteraction, { passive: true });
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      window.removeEventListener('mousemove', triggerLampInteraction);
+      window.removeEventListener('mousedown', triggerLampInteraction);
+      window.removeEventListener('keydown', triggerLampInteraction);
+      window.removeEventListener('touchstart', triggerLampInteraction);
+      window.removeEventListener('wheel', triggerLampInteraction);
+    };
+  }, [enabled]);
+
   if (!enabled) return null;
 
   // Calculate rich incandescent / golden reading light RGB spectrum
@@ -26,10 +60,12 @@ export const NightLightLamp: React.FC<NightLightLampProps> = ({
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-30 transition-opacity duration-700 ease-out overflow-hidden flex items-center justify-center"
+      className={`pointer-events-none absolute inset-0 z-30 transition-opacity duration-1000 ease-in-out overflow-hidden flex items-center justify-center ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
       aria-hidden="true"
     >
-      {/* 1. Outermost Ambient Atmospheric Glow (fills the reading room with subtle warm darkness) */}
+      {/* 1. Outermost Ambient Atmospheric Glow */}
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1600px] h-[1100px] max-w-[170vw] max-h-[140vh] rounded-full blur-[140px] mix-blend-color-dodge opacity-50"
         style={{
@@ -45,7 +81,7 @@ export const NightLightLamp: React.FC<NightLightLampProps> = ({
         }}
       />
 
-      {/* 3. Intense Inner Reading Pool on Paper Folios (replicates direct lamp illumination) */}
+      {/* 3. Intense Inner Reading Pool on Paper Folios */}
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[520px] max-w-[95vw] rounded-full blur-[50px] mix-blend-overlay opacity-60"
         style={{
@@ -53,7 +89,7 @@ export const NightLightLamp: React.FC<NightLightLampProps> = ({
         }}
       />
 
-      {/* 4. Realistic Center Spine Glint (Simulates specular reflection off paper binding curvature) */}
+      {/* 4. Realistic Center Spine Glint */}
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[40px] h-[600px] max-h-[90vh] rounded-full blur-[15px] mix-blend-soft-light opacity-75"
         style={{
@@ -63,3 +99,5 @@ export const NightLightLamp: React.FC<NightLightLampProps> = ({
     </div>
   );
 };
+
+export default NightLightLamp;
