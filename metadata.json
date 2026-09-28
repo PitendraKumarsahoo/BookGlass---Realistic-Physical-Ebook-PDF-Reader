@@ -1,0 +1,6 @@
+{
+  "name": "BookGlass - Realistic Physical Ebook & PDF Reader",
+  "description": "Experience PDFs as realistic physical books with a two-page spread, tactile 3D page turns, authentic paper acoustics, and warm night reading light.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
